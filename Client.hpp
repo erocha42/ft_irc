@@ -15,11 +15,11 @@ class Client
 		bool _nickname_check;
 		bool _name_check;
 		bool _is_signup;
+		Client( Client const &src );
+        Client &operator=( Client const & rhs );
   	public:
 		Client();
 		Client(int fd);
-        Client( Client const &src );
-        Client &operator=( Client const & rhs );
         ~Client();
 };
 

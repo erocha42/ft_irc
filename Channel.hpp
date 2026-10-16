@@ -18,12 +18,12 @@ class Channel
 		bool _topicRestricted;
 		std::string _password;
 		int _user_limit;
+		Channel( Channel const &src );
+        Channel &operator=( Channel const & rhs );
 
   	public:
 		Channel();
 		Channel(std::string name);
-        Channel( Channel const &src );
-        Channel &operator=( Channel const & rhs );
         ~Channel();
 	
 };

@@ -54,3 +54,11 @@ Message &Message::operator=(Message const &rhs) {
 
 Message::~Message() {
 }
+
+const std::string &Message::getCmd() const {
+	return _cmd;
+}
+
+const std::vector<std::string> &Message::getSettings() const {
+	return _settings;
+}

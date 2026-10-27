@@ -18,6 +18,9 @@ class Message
         Message(Message const &src);
         Message &operator=(Message const &rhs);
         ~Message();
+
+		const std::string &getCmd() const;
+		const std::vector<std::string> &getSettings() const;
 	
 };
 

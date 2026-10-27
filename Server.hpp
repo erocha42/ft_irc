@@ -7,6 +7,8 @@
 #include <map>
 #include "Channel.hpp"
 #include "Client.hpp"
+#include "Message.hpp"
+#include <sys/socket.h>
 
 
 class Server
@@ -18,10 +20,17 @@ class Server
 		std::string _password;
 		Server( Server const &src );
         Server &operator=( Server const & rhs );
+
+		void sendReply(Client* c, int err);
+
+	    void cmdPass(const Message& m, Client* c);
+
   	public:
 		Server();
 		Server(int port, std::string password);
         ~Server();
+
+		int executeCommand(const Message& m, Client* c);
 };
 
 #endif

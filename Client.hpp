@@ -21,6 +21,11 @@ class Client
 		Client();
 		Client(int fd);
         ~Client();
+
+		const bool &getIsSignup() const;
+		const int &getFd() const;
+		const std::string &getNickname() const;
+		void setPasswordCheck(bool status);
 };
 
 #endif

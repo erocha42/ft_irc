@@ -2,6 +2,7 @@
 #define SERVER_HPP
 
 #include <string>
+#include <cstring>
 #include <iostream>
 #include <vector>
 #include <map>
@@ -24,6 +25,10 @@ class Server
 		void sendReply(Client* c, int err);
 
 	    void cmdPass(const Message& m, Client* c);
+		void cmdNick(const Message& m, Client* c);
+		void cmdUser(const Message& m, Client* c);
+		void cmdPrivmsg(Client* c1, Client* c2);
+		void checkRegistration(Client* c);
 
   	public:
 		Server();

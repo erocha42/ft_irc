@@ -25,7 +25,16 @@ class Client
 		const bool &getIsSignup() const;
 		const int &getFd() const;
 		const std::string &getNickname() const;
+		const std::string &getUsername() const;
+		const bool &getPasswordcheck() const;
+		const bool &getNicknamecheck() const;
+		const bool &getNamecheck() const;
+
 		void setPasswordCheck(bool status);
+		void setNickname(std::string nickname);
+		void setUsername(std::string username);
+		void setRealname(std::string realname);
+		void setSignup(bool signup);
 };
 
 #endif

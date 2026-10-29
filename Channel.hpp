@@ -25,6 +25,8 @@ class Channel
 		Channel();
 		Channel(std::string name);
         ~Channel();
+
+		const std::string &getName() const;
 	
 };
 

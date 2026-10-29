@@ -12,3 +12,7 @@ Channel::Channel(std::string name) : _topic("Default"), _user_in_Channel(), _use
 Channel::~Channel() {
 	
 }
+
+const std::string &Channel::getName() const {
+	return _name;
+}

@@ -22,13 +22,13 @@ class Server
 		Server( Server const &src );
         Server &operator=( Server const & rhs );
 
-		void sendReply(Client* c, int err);
+		void sendReply(const Message& m, Client* c, int err);
 
 	    void cmdPass(const Message& m, Client* c);
 		void cmdNick(const Message& m, Client* c);
 		void cmdUser(const Message& m, Client* c);
-		void cmdPrivmsg(Client* c1, Client* c2);
-		void checkRegistration(Client* c);
+		void cmdPrivmsg(const Message& m, Client* c);
+		void checkRegistration(const Message& m, Client* c);
 
   	public:
 		Server();

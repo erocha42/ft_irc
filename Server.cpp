@@ -118,7 +118,11 @@ void Server::cmdPrivmsg(const Message& m, Client* c) {
 		for (std::map<std::string, Channel*>::iterator it = _all_channels.begin(); it != _all_channels.end(); it++ ){
 			if (it->second->getName() == m.getSettings()[0]){
 				std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 PRIVMSG " + m.getSettings()[0] + " :" + m.getSettings()[1] +"\r\n";
-				send(it->second->getFd(), msg.c_str(), msg.length(), 0);
+				std::vector<Client*> participants = it->second->getUsers();
+				for (size_t i = 0; i < participants.size(); i++) {
+					if (participants[i] != c)
+						send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+				}
 				return;
 			}
 		}

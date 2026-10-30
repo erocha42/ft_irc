@@ -11,7 +11,7 @@ class Channel
   	private:
 		std::string _name;
 		std::string _topic;
-		std::vector<Client*> _user_in_Channel;
+		std::vector<Client*> _user_in_channel;
 		std::vector<Client*> _user_op;
 		std::vector<Client*> _invited_client;
 		bool _inviteOnly;
@@ -27,6 +27,7 @@ class Channel
         ~Channel();
 
 		const std::string &getName() const;
+		const std::vector<Client*> &getUsers() const;
 	
 };
 

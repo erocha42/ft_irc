@@ -31,13 +31,13 @@ int Server::executeCommand(const Message& m, Client* c) {
 	else if (m.getCmd() == "PRIVMSG")
 		cmdPrivmsg(m, c);
 	else if (m.getCmd() == "JOIN")
-		...
+		cmdJoin(m, c);
 	else if (m.getCmd() == "PART")
-		...
+		cmdPart(m, c);
 	else if (m.getCmd() == "QUIT")
-		...
+		cmdQuit(m, c);
 	else if (m.getCmd() == "KICK")
-		...
+		cmdKick(m, c);
 	else if (m.getCmd() == "INVITE")
 		...
 	else if (m.getCmd() == "TOPIC")
@@ -115,17 +115,16 @@ void Server::cmdPrivmsg(const Message& m, Client* c) {
 		return;
 	}
 	if (m.getSettings()[0][0] == '#' || m.getSettings()[0][0] == '&') {
-		for (std::map<std::string, Channel*>::iterator it = _all_channels.begin(); it != _all_channels.end(); it++ ){
-			if (it->second->getName() == m.getSettings()[0]){
-				std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 PRIVMSG " + m.getSettings()[0] + " :" + m.getSettings()[1] +"\r\n";
-				std::vector<Client*> participants = it->second->getUsers();
-				for (size_t i = 0; i < participants.size(); i++) {
-					if (participants[i] != c)
-						send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
-				}
-				return;
+		std::map<std::string, Channel*>::iterator it = _all_channels.find(m.getSettings()[0]);
+		if (it != _all_channels.end()) {
+			std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 PRIVMSG " + m.getSettings()[0] + " :" + m.getSettings()[1] +"\r\n";
+			std::vector<Client*> participants = it->second->getUsers();
+			for (size_t i = 0; i < participants.size(); i++) {
+				if (participants[i] != c)
+					send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
 			}
 		}
+		return;
 	}
 	else {
 		for (std::map<int, Client*>::iterator it = _all_clients.begin(); it != _all_clients.end(); it++ ){
@@ -138,6 +137,102 @@ void Server::cmdPrivmsg(const Message& m, Client* c) {
 	}
 	sendReply(m, c, 401);
 	return;
+}
+
+void Server::cmdJoin(const Message& m, Client* c) {
+	if (m.getSettings().size() < 1) {
+		sendReply(m, c,461);
+		return;
+	}
+	Channel* target_channel;
+	std::map<std::string, Channel*>::iterator it = _all_channels.find(m.getSettings()[0]);
+	if (it == _all_channels.end()) {
+		Channel* new_channel = new Channel(m.getSettings()[0]);
+		target_channel = new_channel;
+		new_channel->addInChannel(c);
+		new_channel->addOp(c);
+		_all_channels[m.getSettings()[0]] = new_channel;
+	}
+	else {
+		target_channel = it->second;
+		target_channel->addInChannel(c);
+	}
+	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 JOIN :" + m.getSettings()[0] +"\r\n";
+	std::vector<Client*> participants = target_channel->getUsers();
+	for (size_t i = 0; i < participants.size(); i++) {
+		send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+	}
+	std::string list_name = "";
+	for (size_t i = 0; i < participants.size(); i++){
+		if (target_channel->IsOp(participants[i]))
+			list_name += "@" + participants[i]->getNickname() + " ";
+		else
+			list_name += participants[i]->getNickname() + " ";
+	}
+	std::string msg353 = ":Best_Server 353 " + c->getNickname() + " = " + m.getSettings()[0] + " :" + list_name + "\r\n";
+	send(c->getFd(), msg353.c_str(), msg353.length(), 0);
+	std::string endofname = ":Best_Server 366 " + c->getNickname() + " " + m.getSettings()[0] + " :End of /NAMES list.\r\n";
+	send(c->getFd(), endofname.c_str(), endofname.length(), 0);
+}
+
+void Server::cmdPart(const Message& m, Client* c) {
+	if (m.getSettings().size() < 1) {
+		sendReply(m, c,461);
+		return;
+	}
+	std::map<std::string, Channel*>::iterator it = _all_channels.find(m.getSettings()[0]);
+	if (it == _all_channels.end()) {
+		sendReply(m, c, 403);
+		return;
+	}
+	if (!it->second->IsInChannel(c)) {
+		sendReply(m, c, 442);
+		return;
+	}
+	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 PART " + m.getSettings()[0] +" :Leaving in progress\r\n";
+	std::vector<Client*> participants = it->second->getUsers();
+	for (size_t i = 0; i < participants.size(); i++) {
+		send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+	}
+	it->second->removeClient(c);
+	if (it->second->sizeUser() == 0) {
+		delete it->second;
+		_all_channels.erase(m.getSettings()[0]);
+	}
+}
+
+void Server::cmdQuit(const Message& m, Client* c) {
+	for (std::map<std::string, Channel*>::iterator it = _all_channels.begin(); it != _all_channels.end();) {
+		if (it->second->IsInChannel(c)) {
+			std::string msg;
+			if (m.getSettings().size() == 1)
+				msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 QUIT " + ":"+ m.getSettings()[0] + "\r\n";
+			else
+				msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 QUIT " + ":Quit\r\n";
+			it->second->removeClient(c);
+			std::vector<Client*> participants = it->second->getUsers();
+			for (size_t i = 0; i < participants.size(); i++)
+				send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+			std::map<std::string, Channel*>::iterator temp_it;
+			if (it->second->sizeUser() == 0) {
+				temp_it = it;
+				it++;
+				delete temp_it->second;
+				_all_channels.erase(temp_it->first);
+			}
+			else
+				it++;
+		}
+		else
+			it++;
+	}
+	_all_clients.erase(c->getFd());
+	close(c->getFd());
+	delete c;
+}
+
+void Server::cmdKick(const Message& m, Client* c){
+
 }
 
 void Server::sendReply(const Message& m, Client* c, int err) {
@@ -157,12 +252,16 @@ void Server::sendReply(const Message& m, Client* c, int err) {
 		msg = ":Best_Server 432 " + nick + " :Erroneous Nickname\r\n";
 	else if (err == 433)
 		msg = ":Best_Server 433 " + nick + " :Nickname is already in use.\r\n";
+	else if (err == 442)
+		msg = ":Best_Server 442 " + nick + " " + m.getSettings()[0] + " :You're not on that channel\r\n";
 	else if (err == 412)
 		msg = ":Best_Server 412 " + nick + " :No text to send\r\n";
 	else if (err == 411)
 		msg = ":Best_Server 411 " + nick + " :No recipient given " + m.getCmd() + "\r\n";
 	else if (err == 401)
 		msg = ":Best_Server 401 " + nick + " " + m.getSettings()[0] + " :No such nick/channel\r\n";
+	else if (err == 403)
+		msg = ":Best_Server 403 " + nick + " " + m.getSettings()[0] + " :No such channel\r\n";
 	else if (err == 001)
 		msg = ":Best_Server 001 " + nick + " :Welcome to the Internet Relay Network " + nick + "!" + c->getUsername() + "@127.0.0.1\r\n";
 	send(c->getFd(), msg.c_str(), msg.length(), 0);

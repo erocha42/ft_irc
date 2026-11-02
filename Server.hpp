@@ -4,6 +4,7 @@
 #include <string>
 #include <cstring>
 #include <iostream>
+#include <unistd.h>
 #include <vector>
 #include <map>
 #include "Channel.hpp"
@@ -28,6 +29,11 @@ class Server
 		void cmdNick(const Message& m, Client* c);
 		void cmdUser(const Message& m, Client* c);
 		void cmdPrivmsg(const Message& m, Client* c);
+		void cmdJoin(const Message& m, Client* c);
+		void cmdPart(const Message& m, Client* c);
+		void cmdQuit(const Message& m, Client* c);
+		void cmdKick(const Message& m, Client* c);
+
 		void checkRegistration(const Message& m, Client* c);
 
   	public:

@@ -28,7 +28,14 @@ class Channel
 
 		const std::string &getName() const;
 		const std::vector<Client*> &getUsers() const;
-	
+
+		void addInChannel(Client* c);
+		void addOp(Client* c);
+		bool IsInChannel(Client* c);
+		bool IsOp(Client* c);
+
+		void removeClient(Client *c);
+		int sizeUser();
 };
 
 #endif

@@ -14,6 +14,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <netinet/in.h>
+#include <sstream>
+#include <cstdlib>
 
 
 class Server
@@ -37,6 +39,10 @@ class Server
 		void cmdPart(const Message& m, Client* c);
 		void cmdQuit(const Message& m, Client* c);
 		void cmdKick(const Message& m, Client* c);
+		void cmdInvite(const Message& m, Client* c);
+		void cmdTopic(const Message& m, Client* c);
+		void cmdMode(const Message& m, Client* c);
+		void cmdPing(const Message& m, Client* c);
 
 		void checkRegistration(const Message& m, Client* c);
 
@@ -46,7 +52,7 @@ class Server
         ~Server();
 
 		bool	fdl_init();
-		int	executeCommand(const Message& m, Client* c);
+		void	executeCommand(const Message& m, Client* c);
 };
 
 #endif

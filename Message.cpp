@@ -4,36 +4,47 @@ Message::Message() : _prefix(), _cmd(), _settings() {
 }
 
 Message::Message(std::string receive) {
-    int i = 0;
-    int j = 0;
-    if (receive[0] == ':') {
-        _prefix = receive.substr(1, receive.find(' ') - 1);
-        receive.erase(0, receive.find(' ') + 1);
+    while (!receive.empty() && receive[0] == ' ')
+        receive.erase(0, 1);
+    if (!receive.empty() && receive[0] == ':') {
+        size_t pos = receive.find(' ');
+        if (pos != std::string::npos) {
+            _prefix = receive.substr(1, pos - 1);
+            receive.erase(0, pos + 1);
+        } 
+		else {
+            _prefix = receive.substr(1);
+            receive.clear();
+        }
     }
+    while (!receive.empty() && receive[0] == ' ')
+        receive.erase(0, 1);
     if (receive.find(' ') != std::string::npos) {
-        j = receive.find(' ');
+        size_t j = receive.find(' ');
         _cmd = receive.substr(0, j);
         receive.erase(0, j + 1);
+    } 
+	else {
+        _cmd = receive;
+        receive.clear();
     }
-    else {
-        j = receive.length();
-        _cmd = receive.substr(0, j);
-        receive.erase(0, j);
-    }
-    while (receive.length() > 0) {
-        if (receive[0] == ':') {
-            _settings.push_back(receive.substr(1,receive.length() - 1));
+    while (!receive.empty()) {
+        while (!receive.empty() && receive[0] == ' ')
+            receive.erase(0, 1);
+        if (receive.empty())
             break;
-        }
-        else {
-            if (receive.find(' ') != std::string::npos) {
-                i = receive.find(' ');
+        if (receive[0] == ':') {
+            _settings.push_back(receive.substr(1));
+            break;
+        } 
+		else {
+            size_t i = receive.find(' ');
+            if (i != std::string::npos) {
                 _settings.push_back(receive.substr(0, i));
                 receive.erase(0, i + 1);
-            }
-            else {
-                i = receive.length();
-                _settings.push_back(receive.substr(0, i));
+            } 
+			else {
+                _settings.push_back(receive);
                 receive.clear();
             }
         }

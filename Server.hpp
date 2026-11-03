@@ -11,11 +11,15 @@
 #include "Client.hpp"
 #include "Message.hpp"
 #include <sys/socket.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <netinet/in.h>
 
 
 class Server
 {
 	private:
+		int _fdl;
 		int _port;
 		std::map<int, Client*> _all_clients;
 		std::map<std::string, Channel*> _all_channels;
@@ -41,7 +45,8 @@ class Server
 		Server(int port, std::string password);
         ~Server();
 
-		int executeCommand(const Message& m, Client* c);
+		bool	fdl_init();
+		int	executeCommand(const Message& m, Client* c);
 };
 
 #endif

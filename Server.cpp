@@ -1,9 +1,9 @@
 #include "Server.hpp"
 
-Server::Server() : _port(-1), _all_clients(), _all_channels(), _password("Default") {	
+Server::Server() : _fdl(-1), _port(-1), _all_clients(), _all_channels(), _password("Default") {	
 }
 
-Server::Server(int port, std::string password) : _all_clients(), _all_channels() {
+Server::Server(int port, std::string password) : _fdl(-1), _all_clients(), _all_channels() {
 	_port = port;
 	_password = password;
 }
@@ -11,6 +11,8 @@ Server::Server(int port, std::string password) : _all_clients(), _all_channels()
 Server::~Server() {
 	std::map<int, Client *>::iterator it;
 	std::map<std::string, Channel*>::iterator it2;
+	if (_fdl != -1)
+		close(_fdl);
 	for (it = _all_clients.begin(); it != _all_clients.end(); it++) {   
         delete it->second;
     }
@@ -19,6 +21,27 @@ Server::~Server() {
     }
     _all_clients.clear();
 	_all_channels.clear();
+}
+
+bool	Server::fdl_init()
+{
+	_fdl = socket(AF_INET, SOCK_STREAM, 0);
+	if (_fdl == -1)
+	{
+		std::cout << "socket error" << std::endl;	
+		return false;
+	}
+	int one = 1;
+	if (setsockopt(_fdl, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(int)) == -1)
+	{
+		std::cout << "error in the fdl modification" << std::endl;
+		return false;
+	}
+	if (fcntl(_fdl, F_SETFL, O_NONBLOCK) == -1)
+	{
+		std::cout << "error in the fdl modification" << std::endl;
+		return false;
+	}
 }
 
 int Server::executeCommand(const Message& m, Client* c) {

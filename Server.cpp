@@ -1,9 +1,9 @@
 #include "Server.hpp"
 
-Server::Server() : _fdl(-1), _port(-1), _all_clients(), _all_channels(), _password("Default") {	
+Server::Server() : _fdl(-1), _port(-1), _pollfd_list(), _all_clients(), _all_channels(), _password("Default") {	
 }
 
-Server::Server(int port, std::string password) : _fdl(-1), _all_clients(), _all_channels() {
+Server::Server(int port, std::string password) : _fdl(-1), _pollfd_list(), _all_clients(), _all_channels() {
 	_port = port;
 	_password = password;
 }
@@ -28,19 +28,62 @@ bool	Server::fdl_init()
 	_fdl = socket(AF_INET, SOCK_STREAM, 0);
 	if (_fdl == -1)
 	{
-		std::cout << "socket error" << std::endl;	
+		perror("socket");	
 		return false;
 	}
 	int one = 1;
 	if (setsockopt(_fdl, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(int)) == -1)
 	{
-		std::cout << "error in the fdl modification" << std::endl;
+		perror("setsockopt");
 		return false;
 	}
 	if (fcntl(_fdl, F_SETFL, O_NONBLOCK) == -1)
 	{
-		std::cout << "error in the fdl modification" << std::endl;
+		perror("fcntl");
 		return false;
+	}
+	sockaddr_in addr;
+	memset(addr.sin_zero, 0, sizeof(addr.sin_zero));
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(_port);
+	addr.sin_addr.s_addr = INADDR_ANY;
+	if (bind(_fdl, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) == -1)
+	{
+		perror("bind");
+		return false;
+	}
+	if (listen(_fdl, SOMAXCONN) == -1)
+	{
+		perror("listen");
+		return false;
+	}
+	return true;
+}
+
+void	Server::connection_loop()
+{
+	pollfd fdl_;
+	fdl_.fd = _fdl;
+	_pollfd_list.push_back(fdl_);
+	while (true)
+	{
+		if (poll(&_pollfd_list[0], _pollfd_list.size(), -1) == -1)
+			return ;
+		for (int i = 0; i != _pollfd_list.size(); i++)
+		{
+			if (_pollfd_list[i].revents == POLLIN)
+			{
+				if (_pollfd_list[i].fd == _fdl)
+				{
+					pollfd newpoll;
+					sockaddr_in cli;
+					socklen_t cli_len = sizeof(cli);
+					newpoll.fd = accept(_fdl, reinterpret_cast<struct sockaddr*>(&cli), &cli_len);
+					_pollfd_list.push_back(newpoll);
+				}
+			}
+			i++;
+		}
 	}
 }
 

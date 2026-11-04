@@ -16,6 +16,9 @@
 #include <netinet/in.h>
 #include <sstream>
 #include <cstdlib>
+#include <stdio.h>
+#include <poll.h>
+#include <sys/wait.h>
 
 
 class Server
@@ -23,6 +26,7 @@ class Server
 	private:
 		int _fdl;
 		int _port;
+		std::vector<pollfd> _pollfd_list;
 		std::map<int, Client*> _all_clients;
 		std::map<std::string, Channel*> _all_channels;
 		std::string _password;
@@ -52,6 +56,7 @@ class Server
         ~Server();
 
 		bool	fdl_init();
+		void	connection_loop();
 		void	executeCommand(const Message& m, Client* c);
 };
 

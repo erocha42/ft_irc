@@ -4,6 +4,8 @@ Message::Message() : _prefix(), _cmd(), _settings() {
 }
 
 Message::Message(std::string receive) {
+	while (!receive.empty() && (receive[receive.size() - 1] == '\r' || receive[receive.size() - 1] == '\n'))
+   		receive.erase(receive.size() - 1);
     while (!receive.empty() && receive[0] == ' ')
         receive.erase(0, 1);
     if (!receive.empty() && receive[0] == ':') {

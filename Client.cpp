@@ -64,3 +64,14 @@ void Client::setRealname(std::string realname) {
 void Client::setSignup(bool signup) {
 	_is_signup = signup;
 }
+
+std::string& Client::getBuffer() { 
+	return _buffer; 
+}
+
+void Client::appendBuffer(const std::string& str) { 
+	_buffer += str; 
+}
+void Client::clearBuffer() {
+	_buffer.clear();
+}

@@ -15,6 +15,7 @@ class Client
 		bool _nickname_check;
 		bool _name_check;
 		bool _is_signup;
+		std::string _buffer;
 		Client( Client const &src );
         Client &operator=( Client const & rhs );
   	public:
@@ -24,6 +25,7 @@ class Client
 
 		const bool &getIsSignup() const;
 		const int &getFd() const;
+		std::string &getBuffer();
 		const std::string &getNickname() const;
 		const std::string &getUsername() const;
 		const bool &getPasswordcheck() const;
@@ -35,6 +37,9 @@ class Client
 		void setUsername(std::string username);
 		void setRealname(std::string realname);
 		void setSignup(bool signup);
+
+		void appendBuffer(const std::string& str);
+		void clearBuffer();
 };
 
 #endif

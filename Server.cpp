@@ -60,6 +60,11 @@ bool	Server::fdl_init()
 	return true;
 }
 
+void Server::addClient(Client* c) {
+    if (c)
+        _all_clients[c->getFd()] = c;
+}
+
 void	Server::connection_loop()
 {
 	pollfd fdl_;
@@ -215,6 +220,9 @@ void Server::cmdNick(const Message& m, Client* c) {
 			return;
 		}
 	}
+	if (c->getNickname() == m.getSettings()[0]) {
+        return;
+	}
 	for (std::map<int, Client*>::iterator it = _all_clients.begin(); it != _all_clients.end(); it++ ) {
 		if (it->second->getNickname() == m.getSettings()[0]){
 			sendReply(m, c,433);
@@ -223,7 +231,11 @@ void Server::cmdNick(const Message& m, Client* c) {
 	}
 	if (c->getIsSignup()) {
 		std::string msg = ":" + c->getNickname() + "!" + c->getUsername() + "@127.0.0.1 NICK :" + m.getSettings()[0] + "\r\n";
-		send(c->getFd(), msg.c_str(), msg.length(), 0);
+		for (std::map<int, Client*>::iterator it = _all_clients.begin(); it != _all_clients.end(); it++) {
+            if (it->second->getIsSignup()) {
+                send(it->second->getFd(), msg.c_str(), msg.length(), 0);
+            }
+        }
 	}
 	c->setNickname(m.getSettings()[0]);
 	checkRegistration(m, c);
@@ -336,6 +348,10 @@ void Server::cmdJoin(const Message& m, Client* c) {
 		else
 			list_name += participants[i]->getNickname() + " ";
 	}
+	if (target_channel->getTopic() != "") {
+    	std::string msg332 = ":Best_Server 332 " + c->getNickname() + " " + m.getSettings()[0] + " :" + target_channel->getTopic() + "\r\n";
+    	send(c->getFd(), msg332.c_str(), msg332.length(), 0);
+	}
 	std::string msg353 = ":Best_Server 353 " + c->getNickname() + " = " + m.getSettings()[0] + " :" + list_name + "\r\n";
 	send(c->getFd(), msg353.c_str(), msg353.length(), 0);
 	std::string endofname = ":Best_Server 366 " + c->getNickname() + " " + m.getSettings()[0] + " :End of /NAMES list.\r\n";
@@ -394,6 +410,12 @@ void Server::cmdQuit(const Message& m, Client* c) {
 			it++;
 	}
 	_all_clients.erase(c->getFd());
+	for (size_t i = 0; i < _pollfd_list.size(); i++) {
+    	if (_pollfd_list[i].fd == c->getFd()) {
+        	_pollfd_list.erase(_pollfd_list.begin() + i);
+        	break;
+    	}
+	}
 	close(c->getFd());
 	delete c;
 }
@@ -534,31 +556,29 @@ void Server::cmdMode(const Message& m, Client* c) {
 		return; 
 	}
 	if (m.getSettings().size() == 1) {
-		if (m.getSettings().size() == 1) {
-    		std::string activeModes = "+";
-    		std::string modeParams = "";
+    	std::string activeModes = "+";
+    	std::string modeParams = "";
 
-    		if (it->second->getInviteOnly())
-        		activeModes += "i";
-    		if (it->second->getTopicRestricted())
-       			activeModes += "t";
-    		if (it->second->getPassword() != "") {
-        		activeModes += "k";
-        		modeParams += " " + it->second->getPassword();
-    		}
-    		if (it->second->getUserLimit() > 0) {
-        		activeModes += "l";
-        		std::ostringstream ss;
-        		ss << it->second->getUserLimit();
-        		modeParams += " " + ss.str();
-    		}
-    		if (activeModes == "+") {
-        		activeModes = "";
-			}
-			std::string msg = ":Best_Server 324 " + c->getNickname() + " " + m.getSettings()[0] + " " + activeModes + modeParams + "\r\n";
-    		send(c->getFd(), msg.c_str(), msg.length(), 0);
-    		return;
+    	if (it->second->getInviteOnly())
+        	activeModes += "i";
+    	if (it->second->getTopicRestricted())
+       		activeModes += "t";
+    	if (it->second->getPassword() != "") {
+        	activeModes += "k";
+        	modeParams += " " + it->second->getPassword();
+    	}
+    	if (it->second->getUserLimit() > 0) {
+        	activeModes += "l";
+        	std::ostringstream ss;
+        	ss << it->second->getUserLimit();
+        	modeParams += " " + ss.str();
+    	}
+    	if (activeModes == "+") {
+        	activeModes = "";
 		}
+		std::string msg = ":Best_Server 324 " + c->getNickname() + " " + m.getSettings()[0] + " " + activeModes + modeParams + "\r\n";
+    	send(c->getFd(), msg.c_str(), msg.length(), 0);
+    	return;
 	}
 	if (m.getSettings().size() >= 2) {
 		if (!it->second->IsOp(c)) {
@@ -584,7 +604,11 @@ void Server::cmdMode(const Message& m, Client* c) {
     	    	it->second->setPassword(m.getSettings()[argIndex]);
     	    	argIndex++;
 			}
-			else if (!adding) {
+			else {
+				sendReply(m, c, 461);
+				return;
+			}
+			if (!adding) {
     	        it->second->setPassword("");
 				if (argIndex < m.getSettings().size())
 					argIndex++;
@@ -594,6 +618,10 @@ void Server::cmdMode(const Message& m, Client* c) {
     	    if (adding && argIndex < m.getSettings().size()) {
 				it->second->setUserLimit(atoi(m.getSettings()[argIndex].c_str()));
 				argIndex++;
+			}
+			else {
+				sendReply(m, c, 461);
+				return;
 			}
     	    if (!adding)
 				it->second->setUserLimit(0);
@@ -621,6 +649,10 @@ void Server::cmdMode(const Message& m, Client* c) {
 				}
 				argIndex++;
     		}
+			else {
+				sendReply(m, c, 461);
+				return;
+			}
 		}
     	else {
         	sendReply(m, c, 472);
@@ -670,8 +702,12 @@ void Server::sendReply(const Message& m, Client* c, int err) {
 		msg = ":Best_Server 442 " + nick + " " + m.getSettings()[0] + " :You're not on that channel\r\n";
 	else if (err == 443)
 		msg = ":Best_Server 443 " + nick + " " + m.getSettings()[0] + " " + m.getSettings()[1] + " :is already on channel\r\n";	
-	else if (err == 441)
-		msg = ":Best_Server 441 " + nick + " " + m.getSettings()[1] + " " + m.getSettings()[0] + " :They aren't on that channel\r\n";
+	else if (err == 441) {
+    	if (m.getCmd() == "MODE" && m.getSettings().size() >= 3)
+        	msg = ":Best_Server 441 " + nick + " " + m.getSettings().back() + " " + m.getSettings()[0] + " :They aren't on that channel\r\n";
+    	else
+        	msg = ":Best_Server 441 " + nick + " " + m.getSettings()[1] + " " + m.getSettings()[0] + " :They aren't on that channel\r\n";
+	}
 	else if (err == 412)
 		msg = ":Best_Server 412 " + nick + " :No text to send\r\n";
 	else if (err == 451)

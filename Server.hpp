@@ -58,6 +58,7 @@ class Server
 		bool	fdl_init();
 		void	connection_loop();
 		void	executeCommand(const Message& m, Client* c);
+		void 	addClient(Client* c);
 };
 
 #endif

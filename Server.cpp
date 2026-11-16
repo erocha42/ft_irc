@@ -298,7 +298,7 @@ void Server::cmdPing(const Message& m, Client* c) {
 		return;
 	}
 	std::string msg = "PONG Best_Server " + m.getSettings()[0] + "\r\n";
-	send(c->getFd(), msg.c_str(), msg.length(), 0);
+	sendM(c, msg);
 	return;
 }
 
@@ -329,12 +329,12 @@ void Server::cmdNick(const Message& m, Client* c) {
 		sendReply(m, c,431);
 		return;
 	}
-	if (!isalpha(m.getSettings()[0][0]) && std::strchr("[]\\'\"^_-{ | }", m.getSettings()[0][0]) == NULL) {
+	if (!isalpha(m.getSettings()[0][0]) && std::strchr("[]\\'\"^_-{|}", m.getSettings()[0][0]) == NULL) {
 		sendReply(m, c,432);
 		return;
 	}
 	for (size_t i = 1; i < m.getSettings()[0].length(); i++) {
-		if (!isalnum(m.getSettings()[0][i]) && std::strchr("[]\\'\"^_-{ | }", m.getSettings()[0][i]) == NULL ){
+		if (!isalnum(m.getSettings()[0][i]) && std::strchr("[]\\'\"^_-{|}", m.getSettings()[0][i]) == NULL ){
 			sendReply(m, c,432);
 			return;
 		}
@@ -352,7 +352,7 @@ void Server::cmdNick(const Message& m, Client* c) {
 		std::string msg = ":" + c->getNickname() + "!" + c->getUsername() + "@127.0.0.1 NICK :" + m.getSettings()[0] + "\r\n";
 		for (std::map<int, Client*>::iterator it = _all_clients.begin(); it != _all_clients.end(); it++) {
             if (it->second->getIsSignup()) {
-                send(it->second->getFd(), msg.c_str(), msg.length(), 0);
+                sendM(it->second, msg);
             }
         }
 	}
@@ -398,7 +398,7 @@ void Server::cmdPrivmsg(const Message& m, Client* c) {
 			std::vector<Client*> participants = it->second->getUsers();
 			for (size_t i = 0; i < participants.size(); i++) {
 				if (participants[i] != c)
-					send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+					sendM(participants[i], msg);
 			}
 			return;
 		}
@@ -407,7 +407,7 @@ void Server::cmdPrivmsg(const Message& m, Client* c) {
 		for (std::map<int, Client*>::iterator it = _all_clients.begin(); it != _all_clients.end(); it++ ){
 			if (it->second->getNickname() == m.getSettings()[0]){
 				std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 PRIVMSG " + m.getSettings()[0] + " :" + m.getSettings()[1] +"\r\n";
-				send(it->second->getFd(), msg.c_str(), msg.length(), 0);
+				sendM(it->second, msg);
 				return;
 			}
 		}
@@ -458,7 +458,7 @@ void Server::cmdJoin(const Message& m, Client* c) {
 	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 JOIN :" + m.getSettings()[0] +"\r\n";
 	std::vector<Client*> participants = target_channel->getUsers();
 	for (size_t i = 0; i < participants.size(); i++) {
-		send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+		sendM(participants[i], msg);
 	}
 	std::string list_name = "";
 	for (size_t i = 0; i < participants.size(); i++){
@@ -469,12 +469,12 @@ void Server::cmdJoin(const Message& m, Client* c) {
 	}
 	if (target_channel->getTopic() != "") {
     	std::string msg332 = ":Best_Server 332 " + c->getNickname() + " " + m.getSettings()[0] + " :" + target_channel->getTopic() + "\r\n";
-    	send(c->getFd(), msg332.c_str(), msg332.length(), 0);
+    	sendM(c, msg332);
 	}
 	std::string msg353 = ":Best_Server 353 " + c->getNickname() + " = " + m.getSettings()[0] + " :" + list_name + "\r\n";
-	send(c->getFd(), msg353.c_str(), msg353.length(), 0);
+	sendM(c, msg353);
 	std::string endofname = ":Best_Server 366 " + c->getNickname() + " " + m.getSettings()[0] + " :End of /NAMES list.\r\n";
-	send(c->getFd(), endofname.c_str(), endofname.length(), 0);
+	sendM(c, endofname);
 }
 
 void Server::cmdPart(const Message& m, Client* c) {
@@ -491,10 +491,10 @@ void Server::cmdPart(const Message& m, Client* c) {
 		sendReply(m, c, 442);
 		return;
 	}
-	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 PART " + m.getSettings()[0] +" :Leaving in progress\r\n";
+	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 PART " + m.getSettings()[0] +" :Bye\r\n";
 	std::vector<Client*> participants = it->second->getUsers();
 	for (size_t i = 0; i < participants.size(); i++) {
-		send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+		sendM(participants[i], msg);
 	}
 	it->second->removeClient(c);
 	if (it->second->sizeUser() == 0) {
@@ -514,7 +514,7 @@ void Server::cmdQuit(const Message& m, Client* c) {
 			it->second->removeClient(c);
 			std::vector<Client*> participants = it->second->getUsers();
 			for (size_t i = 0; i < participants.size(); i++)
-				send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+				sendM(participants[i], msg);
 			std::map<std::string, Channel*>::iterator temp_it;
 			if (it->second->sizeUser() == 0) {
 				temp_it = it;
@@ -553,12 +553,12 @@ void Server::cmdKick(const Message& m, Client* c){
 		sendReply(m, c, 441);
 		return;
 	}
-	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 KICK " + m.getSettings()[0] + " " + m.getSettings()[1] +" :was kick !\r\n";
+	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 KICK " + m.getSettings()[0] + " " + m.getSettings()[1] +" :Reason\r\n";
 	std::vector<Client*> participants = it->second->getUsers();
 	for (size_t i = 0; i < participants.size(); i++) {
-		send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+		sendM(participants[i], msg);
 	}
-	Client* target;
+	Client* target = NULL;
 	for (size_t i = 0; i < participants.size(); i++) {
 		if (participants[i]->getNickname() == m.getSettings()[1]) {
 			target = participants[i];
@@ -609,7 +609,7 @@ void Server::cmdInvite(const Message& m, Client* c) {
 	}
 	it->second->addinv(target);
 	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 INVITE " + m.getSettings()[0] + " :" + m.getSettings()[1] +"\r\n";
-	send(target->getFd(), msg.c_str(), msg.length(), 0);
+	sendM(target, msg);
 	sendReply(m, c, 341);
 }
 
@@ -633,12 +633,12 @@ void Server::cmdTopic(const Message& m, Client* c) {
 	if (m.getSettings().size() == 1) {
 		if(it->second->getTopic() == "") {
 			std::string msg = ":Best_Server 331 " + nick + " " + m.getSettings()[0] + " :No topic is set\r\n";
-			send(c->getFd(), msg.c_str(), msg.length(), 0);
+			sendM(c, msg);
 			return;
 		}
 		else {
 			std::string msg = ":Best_Server 332 " + nick + " " + m.getSettings()[0] + " :" + it->second->getTopic() +"\r\n";
-			send(c->getFd(), msg.c_str(), msg.length(), 0);
+			sendM(c, msg);
 			return;
 		}
 	}
@@ -651,7 +651,7 @@ void Server::cmdTopic(const Message& m, Client* c) {
 		std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 TOPIC " + m.getSettings()[0] +" :" + m.getSettings()[1] + "\r\n";
 		std::vector<Client*> participants = it->second->getUsers();
 		for (size_t i = 0; i < participants.size(); i++) {
-			send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+			sendM(participants[i], msg);
 		}
 	}
 }
@@ -688,7 +688,7 @@ void Server::cmdMode(const Message& m, Client* c) {
         	activeModes = "";
 		}
 		std::string msg = ":Best_Server 324 " + c->getNickname() + " " + m.getSettings()[0] + " " + activeModes + modeParams + "\r\n";
-    	send(c->getFd(), msg.c_str(), msg.length(), 0);
+    	sendM(c, msg);
     	return;
 	}
 	if (m.getSettings().size() >= 2) {
@@ -710,32 +710,39 @@ void Server::cmdMode(const Message& m, Client* c) {
     	    it->second->setInviteOnly(adding);
     	else if (ch == 't')
     	    it->second->setTopicRestricted(adding);
-    	else if (ch == 'k') {
-			if(adding && argIndex < m.getSettings().size()) {
-    	    	it->second->setPassword(m.getSettings()[argIndex]);
-    	    	argIndex++;
+    	    	else if (ch == 'k') {
+			if (adding) {
+				if (argIndex < m.getSettings().size()) {
+					it->second->setPassword(m.getSettings()[argIndex]);
+					argIndex++;
+				}
+				else {
+					sendReply(m, c, 461);
+					return;
+				}
 			}
 			else {
-				sendReply(m, c, 461);
-				return;
-			}
-			if (!adding) {
-    	        it->second->setPassword("");
+				it->second->setPassword("");
 				if (argIndex < m.getSettings().size())
 					argIndex++;
-    	    }
+			}
     	}
     	else if (ch == 'l') {
-    	    if (adding && argIndex < m.getSettings().size()) {
-				it->second->setUserLimit(atoi(m.getSettings()[argIndex].c_str()));
-				argIndex++;
+			if (adding) {
+				if (argIndex < m.getSettings().size()) {
+					int limit = atoi(m.getSettings()[argIndex].c_str());
+					if (limit > 0)
+						it->second->setUserLimit(limit);
+					argIndex++;
+				}
+				else {
+					sendReply(m, c, 461);
+					return;
+				}
 			}
 			else {
-				sendReply(m, c, 461);
-				return;
-			}
-    	    if (!adding)
 				it->second->setUserLimit(0);
+			}
     	}
     	else if (ch == 'o') {
 			if (argIndex < m.getSettings().size()) {
@@ -776,7 +783,7 @@ void Server::cmdMode(const Message& m, Client* c) {
 	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() + "@127.0.0.1 MODE " + m.getSettings()[0] + " " + modes + modeArgs + "\r\n";
 	std::vector<Client*> participants = it->second->getUsers();
 	for (size_t i = 0; i < participants.size(); i++) {
-		send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+		sendM(participants[i], msg);
 	}
 }
 
@@ -837,7 +844,7 @@ void Server::sendReply(const Message& m, Client* c, int err) {
 		msg = ":Best_Server 404 " + nick + " " + m.getSettings()[0] + " :Cannot send to channel\r\n";
 	else if (err == 1)
 		msg = ":Best_Server 001 " + nick + " :Welcome to the Internet Relay Network " + nick + "!" + c->getUsername() + "@127.0.0.1\r\n";
-	send(c->getFd(), msg.c_str(), msg.length(), 0);
+	sendM(c, msg);
 }
 
 void Server::checkRegistration(const Message& m, Client* c) {

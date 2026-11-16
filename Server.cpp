@@ -276,7 +276,7 @@ void Server::cmdPing(const Message& m, Client* c) {
 		return;
 	}
 	std::string msg = "PONG Best_Server " + m.getSettings()[0] + "\r\n";
-	send(c->getFd(), msg.c_str(), msg.length(), 0);
+	sendM(c, 0);
 	return;
 }
 
@@ -330,7 +330,7 @@ void Server::cmdNick(const Message& m, Client* c) {
 		std::string msg = ":" + c->getNickname() + "!" + c->getUsername() + "@127.0.0.1 NICK :" + m.getSettings()[0] + "\r\n";
 		for (std::map<int, Client*>::iterator it = _all_clients.begin(); it != _all_clients.end(); it++) {
             if (it->second->getIsSignup()) {
-                send(it->second->getFd(), msg.c_str(), msg.length(), 0);
+                sendM(c, 0);
             }
         }
 	}
@@ -376,7 +376,7 @@ void Server::cmdPrivmsg(const Message& m, Client* c) {
 			std::vector<Client*> participants = it->second->getUsers();
 			for (size_t i = 0; i < participants.size(); i++) {
 				if (participants[i] != c)
-					send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+					sendM(c, 0);
 			}
 			return;
 		}
@@ -385,7 +385,7 @@ void Server::cmdPrivmsg(const Message& m, Client* c) {
 		for (std::map<int, Client*>::iterator it = _all_clients.begin(); it != _all_clients.end(); it++ ){
 			if (it->second->getNickname() == m.getSettings()[0]){
 				std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 PRIVMSG " + m.getSettings()[0] + " :" + m.getSettings()[1] +"\r\n";
-				send(it->second->getFd(), msg.c_str(), msg.length(), 0);
+				sendM(c, 0);
 				return;
 			}
 		}
@@ -436,7 +436,7 @@ void Server::cmdJoin(const Message& m, Client* c) {
 	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 JOIN :" + m.getSettings()[0] +"\r\n";
 	std::vector<Client*> participants = target_channel->getUsers();
 	for (size_t i = 0; i < participants.size(); i++) {
-		send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+		sendM(c, 0);
 	}
 	std::string list_name = "";
 	for (size_t i = 0; i < participants.size(); i++){
@@ -447,12 +447,12 @@ void Server::cmdJoin(const Message& m, Client* c) {
 	}
 	if (target_channel->getTopic() != "") {
     	std::string msg332 = ":Best_Server 332 " + c->getNickname() + " " + m.getSettings()[0] + " :" + target_channel->getTopic() + "\r\n";
-    	send(c->getFd(), msg332.c_str(), msg332.length(), 0);
+    	sendM(c, 0);
 	}
 	std::string msg353 = ":Best_Server 353 " + c->getNickname() + " = " + m.getSettings()[0] + " :" + list_name + "\r\n";
-	send(c->getFd(), msg353.c_str(), msg353.length(), 0);
+	sendM(c, 0);
 	std::string endofname = ":Best_Server 366 " + c->getNickname() + " " + m.getSettings()[0] + " :End of /NAMES list.\r\n";
-	send(c->getFd(), endofname.c_str(), endofname.length(), 0);
+	sendM(c, 0);
 }
 
 void Server::cmdPart(const Message& m, Client* c) {
@@ -472,7 +472,7 @@ void Server::cmdPart(const Message& m, Client* c) {
 	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 PART " + m.getSettings()[0] +" :Leaving in progress\r\n";
 	std::vector<Client*> participants = it->second->getUsers();
 	for (size_t i = 0; i < participants.size(); i++) {
-		send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+		sendM(c, 0);
 	}
 	it->second->removeClient(c);
 	if (it->second->sizeUser() == 0) {
@@ -492,7 +492,7 @@ void Server::cmdQuit(const Message& m, Client* c) {
 			it->second->removeClient(c);
 			std::vector<Client*> participants = it->second->getUsers();
 			for (size_t i = 0; i < participants.size(); i++)
-				send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+				sendM(c, 0);
 			std::map<std::string, Channel*>::iterator temp_it;
 			if (it->second->sizeUser() == 0) {
 				temp_it = it;
@@ -534,7 +534,7 @@ void Server::cmdKick(const Message& m, Client* c){
 	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 KICK " + m.getSettings()[0] + " " + m.getSettings()[1] +" :was kick !\r\n";
 	std::vector<Client*> participants = it->second->getUsers();
 	for (size_t i = 0; i < participants.size(); i++) {
-		send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+		sendM(c, 0);
 	}
 	Client* target;
 	for (size_t i = 0; i < participants.size(); i++) {
@@ -587,7 +587,7 @@ void Server::cmdInvite(const Message& m, Client* c) {
 	}
 	it->second->addinv(target);
 	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 INVITE " + m.getSettings()[0] + " :" + m.getSettings()[1] +"\r\n";
-	send(target->getFd(), msg.c_str(), msg.length(), 0);
+	sendM(c, 0);
 	sendReply(m, c, 341);
 }
 
@@ -611,12 +611,12 @@ void Server::cmdTopic(const Message& m, Client* c) {
 	if (m.getSettings().size() == 1) {
 		if(it->second->getTopic() == "") {
 			std::string msg = ":Best_Server 331 " + nick + " " + m.getSettings()[0] + " :No topic is set\r\n";
-			send(c->getFd(), msg.c_str(), msg.length(), 0);
+			sendM(c, 0);
 			return;
 		}
 		else {
 			std::string msg = ":Best_Server 332 " + nick + " " + m.getSettings()[0] + " :" + it->second->getTopic() +"\r\n";
-			send(c->getFd(), msg.c_str(), msg.length(), 0);
+			sendM(c, 0);
 			return;
 		}
 	}
@@ -629,7 +629,7 @@ void Server::cmdTopic(const Message& m, Client* c) {
 		std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 TOPIC " + m.getSettings()[0] +" :" + m.getSettings()[1] + "\r\n";
 		std::vector<Client*> participants = it->second->getUsers();
 		for (size_t i = 0; i < participants.size(); i++) {
-			send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+			sendM(c, 0);
 		}
 	}
 }
@@ -666,7 +666,7 @@ void Server::cmdMode(const Message& m, Client* c) {
         	activeModes = "";
 		}
 		std::string msg = ":Best_Server 324 " + c->getNickname() + " " + m.getSettings()[0] + " " + activeModes + modeParams + "\r\n";
-    	send(c->getFd(), msg.c_str(), msg.length(), 0);
+    	sendM(c, 0);
     	return;
 	}
 	if (m.getSettings().size() >= 2) {
@@ -754,7 +754,7 @@ void Server::cmdMode(const Message& m, Client* c) {
 	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() + "@127.0.0.1 MODE " + m.getSettings()[0] + " " + modes + modeArgs + "\r\n";
 	std::vector<Client*> participants = it->second->getUsers();
 	for (size_t i = 0; i < participants.size(); i++) {
-		send(participants[i]->getFd(), msg.c_str(), msg.length(), 0);
+		sendM(c, 0);
 	}
 }
 
@@ -815,7 +815,7 @@ void Server::sendReply(const Message& m, Client* c, int err) {
 		msg = ":Best_Server 404 " + nick + " " + m.getSettings()[0] + " :Cannot send to channel\r\n";
 	else if (err == 1)
 		msg = ":Best_Server 001 " + nick + " :Welcome to the Internet Relay Network " + nick + "!" + c->getUsername() + "@127.0.0.1\r\n";
-	send(c->getFd(), msg.c_str(), msg.length(), 0);
+	sendM(c, 0);
 }
 
 void Server::checkRegistration(const Message& m, Client* c) {

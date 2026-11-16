@@ -146,11 +146,10 @@ void	Server::connection_loop()
 				else
 				{
 					char buff[512];
+					Client *current_cli = _all_clients.find(_pollfd_list[i].fd)->second;
 					ssize_t n = recv(_pollfd_list[i].fd, buff, sizeof(buff), 0);
 					if (n > 0)
 					{
-						Client *current_cli;
-						current_cli = _all_clients.find(_pollfd_list[i].fd)->second;
 						current_cli->appendBuffer(std::string(buff, n), IN);
 						std::string &buff_cli = current_cli->getBuffer(IN);
 						size_t pos = buff_cli.find("\n", 0);
@@ -172,18 +171,41 @@ void	Server::connection_loop()
 						}
 						if (cli_exist && buff_cli.size() > 512)
 							buff_cli.clear();
+						if (!cli_exist)
+							continue;
 					}
 					else
 					{
 						removeClient(_pollfd_list[i].fd);
 						i--;
+						continue;
 					}
 				}
 			}
-			else if (_pollfd_list[i].revents & (POLLHUP | POLLERR | POLLNVAL))
+			if (_pollfd_list[i].revents & POLLOUT)
+			{
+				Client *current_cli = _all_clients.find(_pollfd_list[i].fd)->second;
+				std::string &buff_cli = current_cli->getBuffer(OUT);
+				ssize_t send_result = send(_pollfd_list[i].fd, buff_cli.c_str(), buff_cli.size(), MSG_NOSIGNAL);
+				if (send_result > 0)
+				{
+					buff_cli.erase(0, send_result);
+					if (buff_cli.empty())
+						_pollfd_list[i].events &= ~POLLOUT;
+				}
+				else if (send_result < 0)
+				{
+					removeClient(_pollfd_list[i].fd);
+					i--;
+					continue;
+				}
+
+			}
+			if (_pollfd_list[i].revents & (POLLHUP | POLLERR | POLLNVAL))
 			{
 				removeClient(_pollfd_list[i].fd);
 				i--;
+				continue;
 			}
 		}
 	}

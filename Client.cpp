@@ -65,13 +65,18 @@ void Client::setSignup(bool signup) {
 	_is_signup = signup;
 }
 
-std::string& Client::getBuffer() { 
-	return _buffer; 
+std::string& Client::getBuffer(int type) {
+	if (type == IN)
+		return _in_buffer;
+	return _out_buffer;
 }
 
-void Client::appendBuffer(const std::string& str) { 
-	_buffer += str; 
+void Client::appendBuffer(const std::string& str, int type) { 
+	if (type == IN)
+		_in_buffer += str;
+	else
+		_out_buffer += str;
 }
 void Client::clearBuffer() {
-	_buffer.clear();
+	_in_buffer.clear();
 }

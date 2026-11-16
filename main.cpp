@@ -2,6 +2,11 @@
 #include <cstdlib>
 #include <cctype>
 
+void handler(int sig)
+{
+	flag = sig;
+}
+
 static bool	check_initer(char *port, std::string const& pwd)
 {
 	for (int i = 0; port[i]; i++)
@@ -36,4 +41,6 @@ int	main(int ac, char **av)
 	Server	srv(atoi(av[1]), av[2]);
 	if (!srv.fdl_init())
 		return 1;
+	signal(SIGINT, handler);
+	srv.connection_loop();
 }

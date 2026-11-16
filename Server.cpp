@@ -1,5 +1,7 @@
 #include "Server.hpp"
 
+volatile sig_atomic_t	flag = 0;
+
 Server::Server() : _fdl(-1), _port(-1), _pollfd_list(), _all_clients(), _all_channels(), _password("Default") {	
 }
 
@@ -13,7 +15,8 @@ Server::~Server() {
 	std::map<std::string, Channel*>::iterator it2;
 	if (_fdl != -1)
 		close(_fdl);
-	for (it = _all_clients.begin(); it != _all_clients.end(); it++) {   
+	for (it = _all_clients.begin(); it != _all_clients.end(); it++) {
+		close(it->second->getFd());
         delete it->second;
     }
 	for (it2 = _all_channels.begin(); it2 != _all_channels.end(); it2++) {   
@@ -28,7 +31,7 @@ bool	Server::fdl_init()
 	_fdl = socket(AF_INET, SOCK_STREAM, 0);
 	if (_fdl == -1)
 	{
-		perror("socket");	
+		perror("socket");
 		return false;
 	}
 	int one = 1;
@@ -65,29 +68,123 @@ void Server::addClient(Client* c) {
         _all_clients[c->getFd()] = c;
 }
 
+void	Server::newClientHandling()
+{
+	pollfd newPoll;
+	memset(&newPoll, 0, sizeof(newPoll));
+	newPoll.events = POLLIN;
+	sockaddr_in cli;
+	socklen_t cli_len = sizeof(cli);
+	if ((newPoll.fd = accept(_fdl, 
+		reinterpret_cast<struct sockaddr*>(&cli), &cli_len)) == -1)
+	{
+		perror("accept");
+		return ;
+	}
+	if (fcntl(newPoll.fd, F_SETFL, O_NONBLOCK) == -1)
+	{
+		perror("fcntl");
+		close(newPoll.fd);
+		return ;
+	}
+	_pollfd_list.push_back(newPoll);
+	Client *newClient = new Client(newPoll.fd);
+	addClient(newClient);
+}
+
+void	Server::removeClient(int fd)
+{
+	Client *client;
+	std::map<int, Client *>::iterator it = _all_clients.find(fd);
+	if (it == _all_clients.end())
+		return ;
+	client = it->second;
+	close(fd);
+	for (size_t i = 0; i < _pollfd_list.size(); i++)
+	{
+		if (_pollfd_list[i].fd == fd)
+		{
+			_pollfd_list.erase(_pollfd_list.begin() + i);
+			break;
+		}
+	}
+	for (std::map<std::string, Channel*>::iterator itc = _all_channels.begin(); itc != _all_channels.end(); itc++) {
+		if (itc->second->IsInChannel(client))
+			itc->second->removeClient(client);
+	}
+	_all_clients.erase(fd);
+	delete client;
+}
+
+void	Server::sendM(Client *cli, std::string const& mess)
+{
+	cli->appendBuffer(mess, OUT);
+	for (size_t i = 0; i < _pollfd_list.size(); i++)
+	{
+		if (cli->getFd() == _pollfd_list[i].fd)
+			_pollfd_list[i].events |= POLLOUT;
+	}
+}
+
 void	Server::connection_loop()
 {
 	pollfd fdl_;
+	memset(&fdl_, 0, sizeof(fdl_));
+	fdl_.events = POLLIN;
 	fdl_.fd = _fdl;
 	_pollfd_list.push_back(fdl_);
-	while (true)
+	while (!flag)
 	{
 		if (poll(&_pollfd_list[0], _pollfd_list.size(), -1) == -1)
 			return ;
-		for (int i = 0; i != _pollfd_list.size(); i++)
+		for (size_t i = 0; i < _pollfd_list.size(); i++)
 		{
-			if (_pollfd_list[i].revents == POLLIN)
+			if (_pollfd_list[i].revents & POLLIN)
 			{
 				if (_pollfd_list[i].fd == _fdl)
+					newClientHandling();
+				else
 				{
-					pollfd newpoll;
-					sockaddr_in cli;
-					socklen_t cli_len = sizeof(cli);
-					newpoll.fd = accept(_fdl, reinterpret_cast<struct sockaddr*>(&cli), &cli_len);
-					_pollfd_list.push_back(newpoll);
+					char buff[512];
+					ssize_t n = recv(_pollfd_list[i].fd, buff, sizeof(buff), 0);
+					if (n > 0)
+					{
+						Client *current_cli;
+						current_cli = _all_clients.find(_pollfd_list[i].fd)->second;
+						current_cli->appendBuffer(std::string(buff, n), IN);
+						std::string &buff_cli = current_cli->getBuffer(IN);
+						size_t pos = buff_cli.find("\n", 0);
+						bool	cli_exist = true;
+						while (pos != std::string::npos)
+						{
+							std::string line = buff_cli.substr(0, pos);
+							Message mess(line);
+							int temp_fd = _pollfd_list[i].fd;
+							executeCommand(mess, current_cli);
+							if (_all_clients.find(temp_fd) == _all_clients.end())
+							{
+								i--;
+								cli_exist = false;
+								break;
+							}
+							buff_cli.erase(0, pos + 1);
+							pos = buff_cli.find("\n", 0);
+						}
+						if (cli_exist && buff_cli.size() > 512)
+							buff_cli.clear();
+					}
+					else
+					{
+						removeClient(_pollfd_list[i].fd);
+						i--;
+					}
 				}
 			}
-			i++;
+			else if (_pollfd_list[i].revents & (POLLHUP | POLLERR | POLLNVAL))
+			{
+				removeClient(_pollfd_list[i].fd);
+				i--;
+			}
 		}
 	}
 }
@@ -409,15 +506,7 @@ void Server::cmdQuit(const Message& m, Client* c) {
 		else
 			it++;
 	}
-	_all_clients.erase(c->getFd());
-	for (size_t i = 0; i < _pollfd_list.size(); i++) {
-    	if (_pollfd_list[i].fd == c->getFd()) {
-        	_pollfd_list.erase(_pollfd_list.begin() + i);
-        	break;
-    	}
-	}
-	close(c->getFd());
-	delete c;
+	removeClient(c->getFd());
 }
 
 void Server::cmdKick(const Message& m, Client* c){
@@ -517,8 +606,8 @@ void Server::cmdTopic(const Message& m, Client* c) {
 		return;
 	}
 	std::string nick = c->getNickname(); 
-    if (nick.empty())
-        nick = "*";
+	if (nick.empty())
+		nick = "*";
 	if (m.getSettings().size() == 1) {
 		if(it->second->getTopic() == "") {
 			std::string msg = ":Best_Server 331 " + nick + " " + m.getSettings()[0] + " :No topic is set\r\n";
@@ -672,8 +761,8 @@ void Server::cmdMode(const Message& m, Client* c) {
 void Server::sendReply(const Message& m, Client* c, int err) {
 	std::string msg;
 	std::string nick = c->getNickname(); 
-    if (nick.empty())
-        nick = "*";
+	if (nick.empty())
+		nick = "*";
 	if (err == 475)
     	msg = ":Best_Server 475 " + nick + " " + m.getSettings()[0] + " :Cannot join channel (+k)\r\n";
 	else if (err == 472)

@@ -20,6 +20,7 @@
 #include <poll.h>
 #include <sys/wait.h>
 
+extern volatile sig_atomic_t	flag;
 
 class Server
 {
@@ -49,6 +50,10 @@ class Server
 		void cmdPing(const Message& m, Client* c);
 
 		void checkRegistration(const Message& m, Client* c);
+
+		void	newClientHandling();
+		void	removeClient(int fd);
+		void	sendM(Client *cli, std::string const& mess);
 
   	public:
 		Server();

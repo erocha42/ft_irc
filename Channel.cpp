@@ -131,7 +131,8 @@ void Channel::removeClient(Client *c) {
 	removeInv(c);
 }
 
-int Channel::sizeUser() {
+int Channel::sizeUser()
+{
 	return _user_in_channel.size();
 }
 

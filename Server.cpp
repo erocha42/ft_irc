@@ -108,9 +108,16 @@ void	Server::removeClient(int fd)
 			break;
 		}
 	}
-	for (std::map<std::string, Channel*>::iterator itc = _all_channels.begin(); itc != _all_channels.end(); itc++) {
-		if (itc->second->IsInChannel(client))
-			itc->second->removeClient(client);
+	for (std::map<std::string, Channel*>::iterator itc = _all_channels.begin(); itc != _all_channels.end();) {
+		itc->second->removeClient(client);
+		if (itc->second->sizeUser() == 0) {
+			std::map<std::string, Channel*>::iterator temp_it = itc;
+			itc++;
+			delete temp_it->second;
+			_all_channels.erase(temp_it->first);
+		}
+		else
+			itc++;
 	}
 	_all_clients.erase(fd);
 	delete client;
@@ -297,7 +304,7 @@ void Server::cmdPing(const Message& m, Client* c) {
 		sendReply(m, c, 409);
 		return;
 	}
-	std::string msg = "PONG Best_Server " + m.getSettings()[0] + "\r\n";
+	std::string msg = ":Best_Server PONG Best_Server :" + m.getSettings()[0] + "\r\n";
 	sendM(c, msg);
 	return;
 }
@@ -479,7 +486,7 @@ void Server::cmdJoin(const Message& m, Client* c) {
 
 void Server::cmdPart(const Message& m, Client* c) {
 	if (m.getSettings().size() < 1) {
-		sendReply(m, c,461);
+		sendReply(m, c, 461);
 		return;
 	}
 	std::map<std::string, Channel*>::iterator it = _all_channels.find(m.getSettings()[0]);
@@ -491,7 +498,11 @@ void Server::cmdPart(const Message& m, Client* c) {
 		sendReply(m, c, 442);
 		return;
 	}
-	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 PART " + m.getSettings()[0] +" :Bye\r\n";
+	std::string msg;
+	if (m.getSettings().size() >= 2)
+		msg = ":" + c->getNickname() + "!" + c->getUsername() + "@127.0.0.1 PART " + m.getSettings()[0] + " :" + m.getSettings()[1] + "\r\n";
+	else
+		msg = ":" + c->getNickname() + "!" + c->getUsername() + "@127.0.0.1 PART " + m.getSettings()[0] + " :Bye\r\n";
 	std::vector<Client*> participants = it->second->getUsers();
 	for (size_t i = 0; i < participants.size(); i++) {
 		sendM(participants[i], msg);
@@ -531,9 +542,9 @@ void Server::cmdQuit(const Message& m, Client* c) {
 	removeClient(c->getFd());
 }
 
-void Server::cmdKick(const Message& m, Client* c){
+void Server::cmdKick(const Message& m, Client* c) {
 	if (m.getSettings().size() < 2) {
-		sendReply(m, c,461);
+		sendReply(m, c, 461);
 		return;
 	}
 	std::map<std::string, Channel*>::iterator it = _all_channels.find(m.getSettings()[0]);
@@ -553,7 +564,11 @@ void Server::cmdKick(const Message& m, Client* c){
 		sendReply(m, c, 441);
 		return;
 	}
-	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() +"@127.0.0.1 KICK " + m.getSettings()[0] + " " + m.getSettings()[1] +" :Reason\r\n";
+	std::string msg;
+	if (m.getSettings().size() >= 3)
+		msg = ":" + c->getNickname() + "!" + c->getUsername() + "@127.0.0.1 KICK " + m.getSettings()[0] + " " + m.getSettings()[1] + " :" + m.getSettings()[2] + "\r\n";
+	else
+		msg = ":" + c->getNickname() + "!" + c->getUsername() + "@127.0.0.1 KICK " + m.getSettings()[0] + " " + m.getSettings()[1] + " :Reason\r\n";
 	std::vector<Client*> participants = it->second->getUsers();
 	for (size_t i = 0; i < participants.size(); i++) {
 		sendM(participants[i], msg);
@@ -658,59 +673,58 @@ void Server::cmdTopic(const Message& m, Client* c) {
 
 void Server::cmdMode(const Message& m, Client* c) {
 	if (m.getSettings().size() < 1) {
-		sendReply(m, c,461);
+		sendReply(m, c, 461);
 		return;
 	}
+	if (m.getSettings()[0][0] != '#' && m.getSettings()[0][0] != '&')
+		return;
 	std::map<std::string, Channel*>::iterator it = _all_channels.find(m.getSettings()[0]);
-	if (it == _all_channels.end()) { 
-		sendReply(m, c, 403); 
-		return; 
+	if (it == _all_channels.end()) {
+		sendReply(m, c, 403);
+		return;
 	}
 	if (m.getSettings().size() == 1) {
-    	std::string activeModes = "+";
-    	std::string modeParams = "";
+		std::string activeModes = "+";
+		std::string modeParams = "";
 
-    	if (it->second->getInviteOnly())
-        	activeModes += "i";
-    	if (it->second->getTopicRestricted())
-       		activeModes += "t";
-    	if (it->second->getPassword() != "") {
-        	activeModes += "k";
-        	modeParams += " " + it->second->getPassword();
-    	}
-    	if (it->second->getUserLimit() > 0) {
-        	activeModes += "l";
-        	std::ostringstream ss;
-        	ss << it->second->getUserLimit();
-        	modeParams += " " + ss.str();
-    	}
-    	if (activeModes == "+") {
-        	activeModes = "";
+		if (it->second->getInviteOnly())
+			activeModes += "i";
+		if (it->second->getTopicRestricted())
+			activeModes += "t";
+		if (it->second->getPassword() != "") {
+			activeModes += "k";
+			modeParams += " " + it->second->getPassword();
+		}
+		if (it->second->getUserLimit() > 0) {
+			activeModes += "l";
+			std::ostringstream ss;
+			ss << it->second->getUserLimit();
+			modeParams += " " + ss.str();
 		}
 		std::string msg = ":Best_Server 324 " + c->getNickname() + " " + m.getSettings()[0] + " " + activeModes + modeParams + "\r\n";
-    	sendM(c, msg);
-    	return;
+		sendM(c, msg);
+		return;
 	}
-	if (m.getSettings().size() >= 2) {
-		if (!it->second->IsOp(c)) {
-			sendReply(m, c, 482);
-			return;
-		}
+	if (m.getSettings()[1] == "b" || m.getSettings()[1] == "+b")
+		return;
+	if (!it->second->IsOp(c)) {
+		sendReply(m, c, 482);
+		return;
 	}
 	bool adding = true;
-    size_t argIndex = 2;
+	size_t argIndex = 2;
 	std::string modes = m.getSettings()[1];
 	for (size_t i = 0; i < modes.length(); i++) {
-    	char ch = modes[i];
-    	if (ch == '+')
+		char ch = modes[i];
+		if (ch == '+')
 			adding = true;
-    	else if (ch == '-') 
+		else if (ch == '-')
 			adding = false;
-    	else if (ch == 'i')
-    	    it->second->setInviteOnly(adding);
-    	else if (ch == 't')
-    	    it->second->setTopicRestricted(adding);
-    	    	else if (ch == 'k') {
+		else if (ch == 'i')
+			it->second->setInviteOnly(adding);
+		else if (ch == 't')
+			it->second->setTopicRestricted(adding);
+		else if (ch == 'k') {
 			if (adding) {
 				if (argIndex < m.getSettings().size()) {
 					it->second->setPassword(m.getSettings()[argIndex]);
@@ -726,13 +740,14 @@ void Server::cmdMode(const Message& m, Client* c) {
 				if (argIndex < m.getSettings().size())
 					argIndex++;
 			}
-    	}
-    	else if (ch == 'l') {
+		}
+		else if (ch == 'l') {
 			if (adding) {
 				if (argIndex < m.getSettings().size()) {
 					int limit = atoi(m.getSettings()[argIndex].c_str());
-					if (limit > 0)
-						it->second->setUserLimit(limit);
+					if (limit <= 0)
+						return;
+					it->second->setUserLimit(limit);
 					argIndex++;
 				}
 				else {
@@ -743,39 +758,39 @@ void Server::cmdMode(const Message& m, Client* c) {
 			else {
 				it->second->setUserLimit(0);
 			}
-    	}
-    	else if (ch == 'o') {
+		}
+		else if (ch == 'o') {
 			if (argIndex < m.getSettings().size()) {
-        	    std::string targetNick = m.getSettings()[argIndex];
-        	    Client* target = NULL;
-        	    std::vector<Client*> participants = it->second->getUsers();
-        	    for (size_t j = 0; j < participants.size(); j++) {
-        	        if (participants[j]->getNickname() == targetNick) {
-        	            target = participants[j];
-        	            break;
-        	        }
-        	    }
-        	    if (target != NULL) {
-        	        if (adding)
-        	            it->second->addOp(target);
-        	        else
-        	            it->second->RemoveOp(target);
-        	    } 
+				std::string targetNick = m.getSettings()[argIndex];
+				Client* target = NULL;
+				std::vector<Client*> participants = it->second->getUsers();
+				for (size_t j = 0; j < participants.size(); j++) {
+					if (participants[j]->getNickname() == targetNick) {
+						target = participants[j];
+						break;
+					}
+				}
+				if (target != NULL) {
+					if (adding)
+						it->second->addOp(target);
+					else
+						it->second->RemoveOp(target);
+				}
 				else {
-         	       	sendReply(m, c, 441);
+					sendReply(m, c, 441);
 					return;
 				}
 				argIndex++;
-    		}
+			}
 			else {
 				sendReply(m, c, 461);
 				return;
 			}
 		}
-    	else {
-        	sendReply(m, c, 472);
+		else {
+			sendReply(m, c, 472);
 			return;
-    	}
+		}
 	}
 	std::string modeArgs = "";
 	for (size_t i = 2; i < m.getSettings().size(); i++)

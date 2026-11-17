@@ -42,5 +42,7 @@ int	main(int ac, char **av)
 	if (!srv.fdl_init())
 		return 1;
 	signal(SIGINT, handler);
+	signal(SIGQUIT, handler);
+	signal(SIGPIPE, SIG_IGN);
 	srv.connection_loop();
 }

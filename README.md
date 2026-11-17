@@ -21,7 +21,6 @@ Key concepts learned include:
 * `JOIN`: Create or join a channel.
 * `PART`: Leave a channel.
 * `PRIVMSG`: Send private messages to users or channels.
-* `NOTICE`: Send notices.
 * `QUIT`: Disconnect cleanly from the server.
 * `KICK`: Eject a user from a channel (operator only).
 * `INVITE`: Invite a user to an invite-only channel (operator only).

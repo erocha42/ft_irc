@@ -15,18 +15,21 @@ Key concepts learned include:
 * **Robustness**: Handling partial TCP buffers, proper cleanup on disconnections, and avoiding memory leaks.
 
 **Commands implemented:**
-* `PASS`: Authenticate with the server password.
-* `NICK`: Set or change the client nickname.
-* `USER`: Register the username and real name.
-* `JOIN`: Create or join a channel.
-* `PART`: Leave a channel.
-* `PRIVMSG`: Send private messages to users or channels.
-* `QUIT`: Disconnect cleanly from the server.
-* `KICK`: Eject a user from a channel (operator only).
-* `INVITE`: Invite a user to an invite-only channel (operator only).
-* `TOPIC`: View or change the channel topic.
-* `MODE`: Manage channel modes (`i`, `t`, `k`, `l`, `o`).
-* `PING`: Respond to server/client heartbeat checks.
+
+| Command | Syntax / Parameters | Example | Description |
+| :--- | :--- | :--- | :--- |
+| `PASS` | `PASS <password>` | `PASS 1234` | Authenticate with the server password (must be sent first). |
+| `NICK` | `NICK <nickname>` | `NICK alice` | Set or change the client nickname. |
+| `USER` | `USER <username> <mode> <unused> :<realname>` | `USER alice 0 * :Alice Wonderland` | Register the username and real name to complete registration. |
+| `JOIN` | `JOIN <#channel> [key]` | `JOIN #general` / `JOIN #secret pass` | Create or join a channel (first user becomes operator `@`). |
+| `PART` | `PART <#channel> [:<reason>]` | `PART #general :Leaving` | Leave a channel with an optional reason. |
+| `PRIVMSG` | `PRIVMSG <target> :<message>` | `PRIVMSG #general :Hello!` | Send a message to a channel (`#chan`) or a user (`nick`). |
+| `QUIT` | `QUIT [:<reason>]` | `QUIT :Goodbye` | Disconnect cleanly from the server. |
+| `KICK` | `KICK <#channel> <nickname> [:<reason>]` | `KICK #general bob :Spamming` | Eject a user from a channel (operator only). |
+| `INVITE` | `INVITE <nickname> <#channel>` | `INVITE bob #general` | Invite a user to a channel (operator only). |
+| `TOPIC` | `TOPIC <#channel> [:<new_topic>]` | `TOPIC #general :New topic` | View (without `:`) or change (with `:`) the channel topic. |
+| `MODE` | `MODE <#channel> [+<modes>/-<modes> [params]]` | `MODE #general +itkl secret 10` | View or manage channel modes (`i`, `t`, `k`, `l`, `o`). |
+| `PING` | `PING <token>` | `PING 12345` | Respond with `PONG` to server/client heartbeat checks. |
 
 ## Instructions
 

@@ -332,7 +332,7 @@ void Server::cmdNick(const Message& m, Client* c) {
 		sendReply(m, c,464);
 		return;
 	}
-	if (m.getSettings().size() < 1) {
+	if (m.getSettings().size() < 1 || m.getSettings()[0].empty()) {
 		sendReply(m, c,431);
 		return;
 	}
@@ -376,7 +376,7 @@ void Server::cmdUser(const Message& m, Client* c) {
 		sendReply(m, c,462);
 		return;
 	}
-	if (m.getSettings().size() != 4) {
+	if (m.getSettings().size() != 4|| m.getSettings()[0].empty()) {
 		sendReply(m, c,461);
 		return;
 	}
@@ -390,7 +390,7 @@ void Server::cmdPrivmsg(const Message& m, Client* c) {
 		sendReply(m, c,411);
 		return;
 	}
-	if (m.getSettings().size() == 1) {
+	if (m.getSettings().size() == 1 || m.getSettings()[1].empty()) {
 		sendReply(m, c,412);
 		return;
 	}
@@ -428,7 +428,7 @@ void Server::cmdJoin(const Message& m, Client* c) {
 		sendReply(m, c,461);
 		return;
 	}
-	if (m.getSettings()[0][0] != '#' && m.getSettings()[0][0] != '&') {
+	if ((m.getSettings()[0][0] != '#' && m.getSettings()[0][0] != '&') || m.getSettings()[0].length() < 2) {
 		sendReply(m, c, 403);
 		return;
 	}
@@ -726,7 +726,7 @@ void Server::cmdMode(const Message& m, Client* c) {
 			it->second->setTopicRestricted(adding);
 		else if (ch == 'k') {
 			if (adding) {
-				if (argIndex < m.getSettings().size()) {
+				if (argIndex < m.getSettings().size() && !m.getSettings()[argIndex].empty()) {
 					it->second->setPassword(m.getSettings()[argIndex]);
 					argIndex++;
 				}
@@ -793,7 +793,7 @@ void Server::cmdMode(const Message& m, Client* c) {
 		}
 	}
 	std::string modeArgs = "";
-	for (size_t i = 2; i < m.getSettings().size(); i++)
+	for (size_t i = 2; i < argIndex; i++)
 		modeArgs += " " + m.getSettings()[i];
 	std::string msg = ":" + c->getNickname() + "!" + c->getUsername() + "@127.0.0.1 MODE " + m.getSettings()[0] + " " + modes + modeArgs + "\r\n";
 	std::vector<Client*> participants = it->second->getUsers();
